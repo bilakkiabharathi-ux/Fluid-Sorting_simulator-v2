@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fluid Sorting Simulator - Web Serial</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏭</text></svg>">
+</head>
+<body>
+
+  <!-- ════════ SCREEN 1: Level Selection ════════ -->
+  <div id="screen-menu" class="screen active">
+    <div class="menu-container">
+      <h1>🏭 Fluid Sorting Simulator</h1>
+      <p class="subtitle">Select Difficulty Level</p>
+      
+      <!-- Level Selection Buttons -->
+      <div class="level-buttons">
+        <button class="btn-level" data-level="1">
+          <span class="level-icon">🟢</span>
+          <span>Easy</span>
+          <span class="level-time">10 sec/label</span>
+        </button>
+        <button class="btn-level" data-level="2">
+          <span class="level-icon">🟡</span>
+          <span>Medium</span>
+          <span class="level-time">7 sec/label</span>
+        </button>
+        <button class="btn-level" data-level="3">
+          <span class="level-icon">🟠</span>
+          <span>Hard</span>
+          <span class="level-time">5 sec/label</span>
+        </button>
+        <button class="btn-level" data-level="4">
+          <span class="level-icon">🔴</span>
+          <span>Expert</span>
+          <span class="level-time">3 sec/label</span>
+        </button>
+      </div>
+      <!-- Add this after the .level-buttons div -->
+<div class="history-section">
+  <button id="btn-history" class="btn-history">
+    <span class="history-icon">📊</span>
+    <span>Game History</span>
+  </button>
+</div>
+      <!-- Arduino Serial Connection -->
+      <div class="serial-connection">
+        <button id="btn-connect-serial" class="btn-serial">🔌 Connect Arduino</button>
+        <div id="serial-status-web" class="status-badge disconnected">❌ Arduino Not Connected</div>
+        <p class="serial-info">Connect Arduino via USB OTG for hardware buttons</p>
+      </div>
+
+      <!-- Keyboard Controls Info -->
+      <div class="keyboard-hint">
+        <p>Keyboard Controls: <kbd>Space</kbd> = Pick, <kbd>1-4</kbd> = Drop to Node</p>
+        <p>Touch Controls: Available on-screen during game</p>
+      </div>
+
+      <!-- System Requirements -->
+      <div class="system-requirements">
+        <details>
+          <summary>📋 System Requirements</summary>
+          <ul>
+            <li>Chrome or Edge browser (Web Serial API support)</li>
+            <li>Android tablet with USB OTG support</li>
+            <li>Arduino Micro with 5 push buttons</li>
+            <li>USB OTG adapter for tablet connection</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ SCREEN 2: Game ════════ -->
+  <div id="screen-game" class="screen">
+    <!-- Game Header HUD -->
+    <div class="game-header">
+      <div class="hud-left">
+        <span id="hud-level">Level: —</span>
+        <span id="hud-progress">0 / 40</span>
+      </div>
+      <div class="hud-center">
+        <span id="hud-status" class="status-idle">WATCHING</span>
+      </div>
+      <div class="hud-right">
+        <span id="hud-timer">⏱ —</span>
+        <span id="hud-arduino-status">🔌 —</span>
+      </div>
+    </div>
+
+    <!-- Conveyor Belt System -->
+    <div id="conveyor">
+      <div id="conveyor-track">
+        <!-- Labels will be dynamically injected here by JavaScript -->
+      </div>
+      <div id="pick-zone">▼ PICK ZONE ▼</div>
+    </div>
+
+    <!-- Node Drop Indicators -->
+    <div class="node-indicators">
+      <div class="node-box" data-node="1">
+        <div class="node-icon">📦</div>
+        <div class="node-label">Node 1</div>
+      </div>
+      <div class="node-box" data-node="2">
+        <div class="node-icon">📦</div>
+        <div class="node-label">Node 2</div>
+      </div>
+      <div class="node-box" data-node="3">
+        <div class="node-icon">📦</div>
+        <div class="node-label">Node 3</div>
+      </div>
+      <div class="node-box" data-node="4">
+        <div class="node-icon">📦</div>
+        <div class="node-label">Node 4</div>
+      </div>
+    </div>
+
+    <!-- Touch Controls (Fallback) -->
+    <div class="touch-controls">
+      <button id="btn-pick" class="ctrl-btn pick-btn">
+        <span class="btn-icon">✋</span>
+        <span class="btn-text">PICK</span>
+      </button>
+      <div class="drop-buttons">
+        <button class="ctrl-btn drop-btn" data-node="1">
+          <span class="btn-icon">1</span>
+          <span class="btn-text">Node 1</span>
+        </button>
+        <button class="ctrl-btn drop-btn" data-node="2">
+          <span class="btn-icon">2</span>
+          <span class="btn-text">Node 2</span>
+        </button>
+        <button class="ctrl-btn drop-btn" data-node="3">
+          <span class="btn-icon">3</span>
+          <span class="btn-text">Node 3</span>
+        </button>
+        <button class="ctrl-btn drop-btn" data-node="4">
+          <span class="btn-icon">4</span>
+          <span class="btn-text">Node 4</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Instructions (Collapsible) -->
+    <div class="game-instructions">
+      <details>
+        <summary>❓ How to Play</summary>
+        <div class="instructions-content">
+          <p><strong>Objective:</strong> Sort shipment labels to correct nodes</p>
+          <p><strong>Pick:</strong> Press PICK when label is in yellow zone</p>
+          <p><strong>Drop:</strong> Press correct Node button (1-4)</p>
+          <p><strong>Avoid:</strong> Don't pick irrelevant shipments</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ════════ SCREEN 3: Results Dashboard ════════ -->
+  <div id="screen-results" class="screen">
+    <div class="results-container">
+      <h1>📊 Sorting Performance Dashboard</h1>
+      
+      <!-- Main Performance Stats -->
+      <div class="stats-grid">
+        <div class="stat-card perfect">
+          <div class="stat-icon">✅</div>
+          <div class="stat-number" id="res-correct">0</div>
+          <div class="stat-label">Perfectly Sorted</div>
+          <div class="stat-description">Correct picks to right nodes</div>
+        </div>
+        
+        <div class="stat-card missorted">
+          <div class="stat-icon">❌</div>
+          <div class="stat-number" id="res-missorted">0</div>
+          <div class="stat-label">Mis-Sorted</div>
+          <div class="stat-description">Picked but wrong node</div>
+        </div>
+        
+        <div class="stat-card spillover">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-number" id="res-spillover">0</div>
+          <div class="stat-label">Spill Over</div>
+          <div class="stat-description">Missed relevant items</div>
+        </div>
+        
+        <div class="stat-card falsepick">
+          <div class="stat-icon">🚫</div>
+          <div class="stat-number" id="res-falsepick">0</div>
+          <div class="stat-label">False Picks</div>
+          <div class="stat-description">Picked irrelevant items</div>
+        </div>
+        
+        <div class="stat-card ignored">
+          <div class="stat-icon">👁️</div>
+          <div class="stat-number" id="res-ignored">0</div>
+          <div class="stat-label">Correctly Ignored</div>
+          <div class="stat-description">Properly avoided irrelevant</div>
+        </div>
+      </div>
+      <!-- Add this after screen-results -->
+    <div id="screen-history" class="screen">
+      <div class="history-container">
+        <div class="history-header">
+          <h1>📊 Game History</h1>
+          <button id="btn-back-to-menu" class="btn-back">← Back to Menu</button>
+        </div>
+        
+        <div id="history-content" class="history-content">
+          <div class="no-history">
+            <p>No games played yet. Start playing to see your history!</p>
+          </div>
+        </div>
+        
+        <div class="history-actions">
+          <button id="btn-clear-history" class="btn-secondary">🗑️ Clear History</button>
+        </div>
+      </div>
+    </div>
+
+      <!-- Summary Metrics -->
+      <div class="summary-stats">
+        <div class="summary-item">
+          <span class="summary-label">Total Time</span>
+          <span class="summary-value" id="res-total-time">0:00</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Accuracy</span>
+          <span class="summary-value" id="res-accuracy">0%</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Speed</span>
+          <span class="summary-value" id="res-speed">0 items/min</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Efficiency</span>
+          <span class="summary-value" id="res-efficiency">0%</span>
+        </div>
+      </div>
+
+      <!-- Performance Rating Badge -->
+      <div class="performance-badge" id="performance-badge">
+        <div class="badge-icon">🏆</div>
+        <div class="badge-text">Performance Rating</div>
+        <div class="badge-score" id="badge-score">Excellent</div>
+        <div class="badge-description" id="badge-description">Outstanding sorting performance!</div>
+      </div>
+
+      <!-- Detailed Breakdown -->
+      <div class="results-breakdown">
+        <h2>📈 Session Analysis</h2>
+        <div class="breakdown-grid">
+          <div class="breakdown-item">
+            <span class="breakdown-label">Total Items Processed:</span>
+            <span class="breakdown-value" id="breakdown-total">40</span>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Relevant Items:</span>
+            <span class="breakdown-value" id="breakdown-relevant">25</span>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Irrelevant Items:</span>
+            <span class="breakdown-value" id="breakdown-irrelevant">15</span>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Actions Taken:</span>
+            <span class="breakdown-value" id="breakdown-actions">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="results-actions">
+        <button id="btn-restart" class="btn-restart">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">Play Again</span>
+        </button>
+        <button id="btn-print-results" class="btn-secondary">
+          <span class="btn-icon">🖨️</span>
+          <span class="btn-text">Print Results</span>
+        </button>
+        <button id="btn-share-results" class="btn-secondary">
+          <span class="btn-icon">📤</span>
+          <span class="btn-text">Share Results</span>
+        </button>
+      </div>
+
+      <!-- Training Tips -->
+      <div class="training-tips">
+        <details>
+          <summary>💡 Training Tips</summary>
+          <div class="tips-content">
+            <ul>
+              <li><strong>Focus:</strong> Watch for label details in the pick zone</li>
+              <li><strong>Speed:</strong> Practice increases reaction time</li>
+              <li><strong>Accuracy:</strong> Better to miss than pick wrong item</li>
+              <li><strong>Pattern Recognition:</strong> Learn to identify node types quickly</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ Loading Overlay ════════ -->
+  <div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading Simulator...</div>
+    </div>
+  </div>
+
+  <!-- ════════ Error Modal ════════ -->
+  <div id="error-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚠️ Connection Error</h2>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="error-message">An error occurred while connecting to Arduino.</p>
+        <div class="error-solutions">
+          <h3>Troubleshooting:</h3>
+          <ul>
+            <li>Check USB OTG connection</li>
+            <li>Ensure Arduino is powered on</li>
+            <li>Try refreshing the page</li>
+            <li>Use Chrome or Edge browser</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-retry-connection" class="btn-primary">🔄 Retry Connection</button>
+        <button id="btn-continue-keyboard" class="btn-secondary">⌨️ Continue with Keyboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ About Modal ════════ -->
+  <div id="about-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>ℹ️ About Fluid Sorting Simulator</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Version:</strong> 2.0 - Web Serial Edition</p>
+        <p><strong>Purpose:</strong> Training tool for warehouse sorting operations</p>
+        <p><strong>Technology:</strong> Web Serial API, HTML5, CSS3, JavaScript</p>
+        <p><strong>Hardware:</strong> Arduino Micro with 5 tactile switches</p>
+        <br>
+        <p><strong>Features:</strong></p>
+        <ul>
+          <li>4 difficulty levels (3-10 seconds per item)</li>
+          <li>40 randomized shipping labels</li>
+          <li>Real-time performance tracking</li>
+          <li>Arduino hardware integration</li>
+          <li>Touch screen fallback controls</li>
+          <li>Comprehensive results analysis</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ Footer Info ════════ -->
+  <div class="footer-info">
+    <button id="btn-about" class="btn-link">ℹ️ About</button>
+    <span class="version">v2.0</span>
+  </div>
+
+  <!-- ════════ Scripts ════════ -->
+  <script src="app.js"></script>
+  
+  <!-- Service Worker for Offline Support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => console.log('SW registered'))
+          .catch(error => console.log('SW registration failed'));
+      });
+    }
+  </script>
+
+</body>
+</html>
